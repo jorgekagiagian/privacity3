@@ -23,12 +23,8 @@ public class MessageDetail implements Serializable{
 	public void setMessageDetailId(MessageDetailId messageDetailId) {
 		this.messageDetailId = messageDetailId;
 	}
-	public String getText() {
-		return text;
-	}
-	public void setText(String text) {
-		this.text = text;
-	}
+	
+
 	public MessageState getState() {
 		return state;
 	}
@@ -45,8 +41,17 @@ public class MessageDetail implements Serializable{
 	@EmbeddedId
 	private MessageDetailId messageDetailId; 
 	
-    private String text;
+
     private MessageState state;
+    
+    private boolean logicDeleted;
+
+	public boolean isLogicDeleted() {
+		return logicDeleted;
+	}
+	public void setLogicDeleted(boolean logicDeleted) {
+		this.logicDeleted = logicDeleted;
+	}
 
 
 }

@@ -11,6 +11,7 @@ import org.springframework.data.repository.CrudRepository;
 import com.privacity.server.model.Grupo;
 import com.privacity.server.model.Message;
 import com.privacity.server.model.MessageId;
+import com.privacity.server.security.Usuario;
 
 
 
@@ -19,6 +20,12 @@ import com.privacity.server.model.MessageId;
 
 public interface MessageRepository extends CrudRepository<Message, MessageId> {
 
+	
+//	@Transactional
+//	@Modifying
+//	@Query("insert into media (data, media_type, id_grupo, id_message) values (?1, ?2, ?3, ?4) ")
+//	void insertMed(byte[] data, int media_type, Long id_grupo, Long id_message);
+	
 	List<Message> findByMessageIdGrupoIdGrupo(Long idGrupo);
 
 	@Transactional
@@ -28,4 +35,17 @@ public interface MessageRepository extends CrudRepository<Message, MessageId> {
 
 	Message findByMessageIdIdMessage(long parseLong);
 
+	@Transactional
+	@Modifying
+	@Query("DELETE FROM  Message u where "
+			+ " u.userCreation = ?2  "
+			+ " and u.messageId.grupo = ?1 ")
+	void deleteAllMyMessagesByGrupo(Grupo grupo, Usuario usuarioLogged);
+
+	@Query("SELECT u FROM Message u where "
+			+ " u.userCreation = ?2  "
+			+ " and u.anonimo = 1  "
+			+ " and u.messageId.grupo = ?1 ")
+
+	List<Message> findByMessageIdGrupoUserAnonimo(Grupo grupo, Usuario usuarioLogged);
 }

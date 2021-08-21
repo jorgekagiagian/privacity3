@@ -1,10 +1,9 @@
 package com.privacity.server.main;
 
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,164 +11,135 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.google.gson.Gson;
 import com.privacity.common.config.Constant;
+import com.privacity.common.dto.EncryptKeysDTO;
+import com.privacity.common.dto.GrupoDTO;
 import com.privacity.common.dto.MessageDTO;
 import com.privacity.common.dto.MessageDetailDTO;
 import com.privacity.common.dto.ProtocoloDTO;
+import com.privacity.common.dto.UsuarioDTO;
+import com.privacity.common.dto.UsuarioInvitationCodeDTO;
 import com.privacity.common.dto.request.GrupoAddUserRequestDTO;
-import com.privacity.common.dto.request.GrupoSaveRequestDTO;
-import com.privacity.common.dto.request.MessageSendRequestDTO;
-import com.privacity.server.component.grupo.GrupoController;
-import com.privacity.server.component.message.MessageController;
+import com.privacity.common.dto.request.GrupoInvitationAcceptRequestDTO;
+import com.privacity.common.dto.request.GrupoNewRequestDTO;
+import com.privacity.common.dto.request.PublicKeyByInvitationCodeRequestDTO;
+import com.privacity.common.dto.request.RequestEncryptDTO;
+import com.privacity.server.component.common.ControllerBase;
+import com.privacity.server.component.encryptkeys.EncryptKeysService;
+import com.privacity.server.component.grupo.GrupoValidationService;
+import com.privacity.server.component.message.MessageValidationService;
+import com.privacity.server.component.myaccount.MyAccountValidationService;
+import com.privacity.server.component.usuario.UsuarioService;
+import com.privacity.server.encrypt.CryptSessionRegistry;
+import com.privacity.server.encrypt.PrivacityIdServices;
+import com.privacity.server.security.UserDetailsImpl;
 
 
 @RestController
 @RequestMapping(path = "/secure")
-public class MainController {
 
+public class MainController extends ControllerBase{
 
-	@Autowired
-	GrupoController grupoController;
+	@Value("${privacity.security.encrypt.ids}")
+	private boolean encryptIds;
 	
-	@Autowired
-	MessageController messageController;
+	private PrivacityIdServices privacityIdServices;
+	private GrupoValidationService grupoValidationService;
+	private MessageValidationService messageValidationService;
+	private EncryptKeysService encryptKeysValidationService;
+	private MyAccountValidationService myAccountValidationService;
+	private UsuarioService	usuarioService;
 	
+	public MainController(GrupoValidationService grupoValidationService,
+			MessageValidationService messageValidationService, MyAccountValidationService myAccountValidationService,
+			UsuarioService	usuarioService,EncryptKeysService encryptKeysValidationService,
+			PrivacityIdServices privacityIdServices) throws Exception {
+		super();
+		this.usuarioService	= usuarioService;
+		this.grupoValidationService = grupoValidationService;
+		this.messageValidationService = messageValidationService;
+		this.myAccountValidationService = myAccountValidationService;
+		this.privacityIdServices = privacityIdServices;
+		this.encryptKeysValidationService=encryptKeysValidationService;
+		
+		getMapaController().put(Constant.PROTOCOLO_COMPONENT_ENCRYPT_KEYS, encryptKeysValidationService);
+		getMapaController().put("/grupo", grupoValidationService);
+		getMapaController().put("/message", messageValidationService);
+		getMapaController().put("/myAccount", myAccountValidationService);
+		
+		getMapaMetodos().put(Constant.PROTOCOLO_ACTION_ENCRYPT_KEYS_GET, EncryptKeysService.class.getMethod("getPublicKeyByCodigoInvitacion", PublicKeyByInvitationCodeRequestDTO.class));
+//		getMapaMetodos().put(Constant.PROTOCOLO_ACTION_ENCRYPT_KEYS_CREATE, EncryptKeysValidationService.class.getMethod("create", EncryptKeysDTO.class));
+		
+		getMapaMetodos().put("/grupo/newGrupo", GrupoValidationService.class.getMethod("newGrupo", GrupoNewRequestDTO.class));
+		getMapaMetodos().put("/grupo/listar/misGrupos", GrupoValidationService.class.getMethod("listarMisGrupos"));
+		getMapaMetodos().put("/grupo/initGrupo", GrupoValidationService.class.getMethod("initGrupo", String.class));
+		getMapaMetodos().put("/grupo/sentInvitation", GrupoValidationService.class.getMethod("sentInvitation", GrupoAddUserRequestDTO.class));
+		
+		getMapaMetodos().put("/grupo/acceptInvitation", GrupoValidationService.class.getMethod("acceptInvitation", GrupoInvitationAcceptRequestDTO.class));
+		
+		
+		getMapaMetodos().put("/grupo/removeMe", GrupoValidationService.class.getMethod("removeMe", GrupoDTO.class));
+		
+		
+		//getMapaMetodos().put("/message/send", MessageValidationService.class.getMethod("send", MessageDTO.class));
+		//getMapaMetodos().put("/message/sendAnonimo", messageController.getClass().getMethod("sendAnonimo", MessageDTO.class));
+		getMapaMetodos().put("/message/emptyList", MessageValidationService.class.getMethod("emptyList", GrupoDTO.class));
+		
+		getMapaMetodos().put("/message/deleteForMe", MessageValidationService.class.getMethod("deleteForMe", MessageDetailDTO.class));
+		getMapaMetodos().put("/message/deleteForEveryone", MessageValidationService.class.getMethod("deleteForEveryone", MessageDetailDTO.class));
+		
+		getMapaMetodos().put(Constant.PROTOCOLO_ACTION_MESSAGE_GET_ALL_ID_MESSAGE_UNREAD, MessageValidationService.class.getMethod("getAllidMessageUnreadMessages"));		
+		getMapaMetodos().put(Constant.PROTOCOLO_ACTION_MESSAGE_GET_MESSAGE, MessageValidationService.class.getMethod("get", MessageDTO.class));
+		getMapaMetodos().put(Constant.PROTOCOLO_ACTION_MESSAGE_CHANGE_STATE, MessageValidationService.class.getMethod("changeState", MessageDetailDTO.class));
+		
+		getMapaMetodos().put("/message/get/loadMessages", MessageValidationService.class.getMethod("loadMessages", MessageDTO.class));
+		getMapaMetodos().put("/myAccount/invitationCodeGenerator", MyAccountValidationService.class.getMethod("invitationCodeGenerator", EncryptKeysDTO.class));
+		getMapaMetodos().put("/myAccount/isInvitationCodeAvailable", MyAccountValidationService.class.getMethod("isInvitationCodeAvailable", String.class));
+		getMapaMetodos().put("/myAccount/saveCodeAvailable", MyAccountValidationService.class.getMethod("saveCodeAvailable", UsuarioInvitationCodeDTO.class));
+		
+		getMapaMetodos().put("/myAccount/save", MyAccountValidationService.class.getMethod("save", UsuarioDTO.class));
 
-	Map<String,Method> mapaMetodos = new HashMap<String,Method>();
-	Map<String,Object> mapaController = new HashMap<String,Object>();
-//	Map<String,ProtocoloDTO> mapaProtocolo = new HashMap<String,ProtocoloDTO>();
-	public MainController() throws Exception {
 	}
-				
+
+
+
+		
 
 	@PostMapping("/main")
-	public ProtocoloDTO in(@RequestBody ProtocoloDTO request) throws Exception {
+	public ResponseEntity<String> inMain(@RequestBody String request) throws Exception {
+		RequestEncryptDTO requestDTO = new Gson().fromJson(request, RequestEncryptDTO.class);
 		
-		mapaController.put("/grupo", grupoController);
-		mapaController.put("/message", messageController);
+		request = requestDTO.getRequest();
 		
-		mapaMetodos.put("/grupo/save", grupoController.getClass().getMethod("save", GrupoSaveRequestDTO.class));
-		mapaMetodos.put("/grupo/listar/misGrupos", grupoController.getClass().getMethod("listarMisGrupos"));
-		mapaMetodos.put("/grupo/initGrupo", grupoController.getClass().getMethod("initGrupo", String.class));
-		mapaMetodos.put("/grupo/addUser", grupoController.getClass().getMethod("addUser", GrupoAddUserRequestDTO.class));
-		
-		mapaMetodos.put("/message/send", messageController.getClass().getMethod("send", MessageSendRequestDTO.class));
-		mapaMetodos.put("/message/emptyList", messageController.getClass().getMethod("emptyList", String.class));
-		mapaMetodos.put(Constant.PROTOCOLO_ACTION_MESSAGE_GET_ALL_ID_MESSAGE_UNREAD, messageController.getClass().getMethod("getAllidMessageUnreadMessages"));		
-		mapaMetodos.put(Constant.PROTOCOLO_ACTION_MESSAGE_GET_MESSAGE, messageController.getClass().getMethod("get", MessageDTO.class));
-		mapaMetodos.put(Constant.PROTOCOLO_ACTION_MESSAGE_CHANGE_STATE, messageController.getClass().getMethod("changeState", MessageDetailDTO.class));
-		
-		mapaMetodos.put("/message/get/loadMessages", messageController.getClass().getMethod("loadMessages", MessageDTO.class));
-	
-//		mapaProtocolo.put("/grupo/save", new ProtocoloDTO());
-//		mapaProtocolo.put("/grupo/listar/misGrupos", new ProtocoloDTO());
-//		mapaProtocolo.put("/grupo/initGrupo", new ProtocoloDTO());
-//		mapaProtocolo.put("/grupo/addUser", new ProtocoloDTO());
-//		
-//		mapaProtocolo.put("/message/send", new ProtocoloDTO());
-//		mapaProtocolo.put("/message/emptyList", new ProtocoloDTO());
-//		
-//		mapaProtocolo.put("/message/changeState", new ProtocoloDTO(""));
-
-		
-		// tomo el dto a ejecutar
-		Object objetoRetorno;
-		if ( mapaMetodos.get(request.getAction()).getParameterTypes().length == 0) {
-			 objetoRetorno = mapaMetodos.get(request.getAction()).invoke(mapaController.get(request.getComponent()));
-
-		}else {
-			Object dtoObject =  getDTOObject(request.getObjectDTO(),mapaMetodos.get(request.getAction()).getParameterTypes()[0]);
-			 objetoRetorno = mapaMetodos.get(request.getAction()).invoke(mapaController.get(request.getComponent()), dtoObject);
-			
-		}
-		
-		// ejecuto el dto y obtengo la salida
-
-		
-//		EncriptadoService eee = new EncriptadoService();
-//		fakeDTO.setName(eee.encriptarPGPOutIn(publicKeyPrivacity, "anda !!"));
-//		Object objetoRetorno= fakeDTO;
-		
-
-		
-		
-		// armo la devolucion
-		String retornoJson = new Gson().toJson(objetoRetorno);
-		
-		ProtocoloDTO p = new ProtocoloDTO();
-		p.setComponent(request.getComponent());
-		p.setAction(request.getAction());
-		//p.setMensajeRespuesta();
-		p.setObjectDTO(retornoJson);
-		p.setPeticionId(request.getPeticionId());
-
-		
-		return p;
-		
-//		RSA t  = new RSA();
-//
-//
-
-		
-//		{
-//			byte[] enc = t.encryptFilePublic("xxxxxxxxxxxxxxxxxxxxxxx".getBytes(), publicKeyUsuario);
-//			String encode = Base64.getEncoder().encodeToString(enc);
-//			 System.out.println(encode);
-//		    
-//			 byte[] des = t.decryptFilePrivate(enc, privateKeyPrivacity);
-//			 System.out.println(new String(des, StandardCharsets.UTF_8));
-//		}	    
-		//desencriptar la llave publica
-		//TODO
-		// desencriptar objectDTO
+		Authentication auth = SecurityContextHolder
+	            .getContext()
+	            .getAuthentication();
+		UserDetailsImpl u = (UserDetailsImpl) auth.getPrincipal();
 	    
-//	    privacityIdServices.getAESDecrypt(request.getObjectDTO(), request.getKeyCodePrivacity());
-//		byte[] des = t.decryptFilePrivate(request.getKeyCodePrivacity().getBytes(), privateKeyPrivacity);
+		SecretKeyPersonal c = CryptSessionRegistry.getInstance().getSessionIds(u.getUsername()).getSecretKeyPersonal();
 		
-//		privacityIdServices.transformarDesencriptar(request,privateKeyPrivacity);
-		//transformar el dto json a objecto
+		String requestDesencriptado = c.getAESDecrypt(request);
 		
-//		GrupoSaveRequestDTO fakeDTO = new GrupoSaveRequestDTO();
-//		fakeDTO.setName("nombre");
-//		
-
-
-
-//		
-//		privacityIdServices.transformarDesencriptar(dtoObject,privateKeyPrivacity);
-		//((GrupoSaveRequestDTO)dtoObject).setName("123");
-		//TODO
-		//Action salvar listar etc
-
-//		
+		ProtocoloDTO p = new Gson().fromJson(requestDesencriptado, ProtocoloDTO.class);
 		
-		//tomar dto
+		ProtocoloDTO retornoFuncion = super.in(p);
+		String retornoFuncionJson = new Gson().toJson(retornoFuncion);
+		System.out.println(">>" + retornoFuncionJson);
+		String retornoFuncionEncriptado = c.getAES(retornoFuncionJson);
 		
-
-//		privacityIdServices.transformarEncriptar(objetoRetorno,publicKeyUsuario);
-//		
-//		String retornoJson = new Gson().toJson(objetoRetorno);
-//		
-//		ProtocoloDTO p = new ProtocoloDTO();
-//		p.setComponent("/grupo");
-//		p.setAction("/grupo/save");
-//		p.setMensajeRespuesta("El grupo fue creado");
-//		p.setObjectDTO(retornoJson);
-//		p.setPeticionId(request.getPeticionId());
-//		
-//		privacityIdServices.transformarEncriptar(p,publicKeyUsuario);
-//		
-//		return p;
+		System.out.println("ENCRIPTADO >>" + retornoFuncionEncriptado);
+		return ResponseEntity.ok().body(new Gson().toJson(retornoFuncionEncriptado));
 
 	}
 
-	
-
-
-	private Object getDTOObject(String objectDTO, Class clazz) {
-		Gson gson = new Gson();
-		return gson.fromJson(objectDTO, clazz);
+	@Override
+	public PrivacityIdServices getPrivacityIdServices() {
+		// TODO Auto-generated method stub
+		return this.privacityIdServices;
 	}
-	
 
+	@Override
+	public boolean getEncryptIds() {
+		return encryptIds;
+	}
 
 }

@@ -10,6 +10,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.privacity.common.dto.AESDTO;
+import com.privacity.server.encrypt.CryptSessionRegistry;
+import com.privacity.server.model.EncryptKeys;
 
 public class UserDetailsImpl implements UserDetails {
 	private static final long serialVersionUID = 1L;
@@ -17,18 +20,23 @@ public class UserDetailsImpl implements UserDetails {
 	private Long idUser;
 
 	private String username;
-
+	private String nickname;
 	@JsonIgnore
 	private String password;
-
+	private AESDTO sessionEncrypt;
+	private EncryptKeys encryptKeys;
 	private Collection<? extends GrantedAuthority> authorities;
 
 	public UserDetailsImpl(Long idUser, String username, String password,
-			Collection<? extends GrantedAuthority> authorities) {
+			Collection<? extends GrantedAuthority> authorities, 
+			String nickname, AESDTO sessionEncrypt, EncryptKeys encryptKeys) {
 		this.idUser = idUser;
 		this.username = username;
 		this.password = password;
 		this.authorities = authorities;
+		this.nickname = nickname;
+		this.sessionEncrypt = sessionEncrypt;
+		this.encryptKeys = encryptKeys;
 	}
 
 	public static UserDetailsImpl build(Usuario user) {
@@ -36,13 +44,31 @@ public class UserDetailsImpl implements UserDetails {
 				.map(role -> new SimpleGrantedAuthority(role.getName().name()))
 				.collect(Collectors.toList());
 
-		return new UserDetailsImpl(
-				user.getIdUser(), 
-				user.getUsername(), 
-				user.getPassword(), 
-				authorities);
+		try {
+		EncryptKeys ek =  new EncryptKeys();
+		ek.setPrivateKey(CryptSessionRegistry.getInstance().getSessionIds(user.getUsername()).getPrivateKeyToSend());
+		ek.setPublicKey(CryptSessionRegistry.getInstance().getSessionIds(user.getUsername()).getPublicKeyToSend());
+		
+	
+			return new UserDetailsImpl(
+					user.getIdUser(), 
+					user.getUsername(), 
+					user.getUsuarioPassword().getPassword(), 
+					authorities,
+					user.getNickname(),
+					CryptSessionRegistry.getInstance().getSessionIds(user).getSessionAESDTOToSend(),
+					ek
+					
+					);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 
+
+	
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		return authorities;
@@ -91,5 +117,29 @@ public class UserDetailsImpl implements UserDetails {
 			return false;
 		UserDetailsImpl user = (UserDetailsImpl) o;
 		return Objects.equals(idUser, user.idUser);
+	}
+
+	public String getNickname() {
+		return nickname;
+	}
+
+	public void setNickname(String nickname) {
+		this.nickname = nickname;
+	}
+
+	public AESDTO getSessionEncrypt() {
+		return sessionEncrypt;
+	}
+
+	public void setSessionEncrypt(AESDTO sessionEncrypt) {
+		this.sessionEncrypt = sessionEncrypt;
+	}
+
+	public EncryptKeys getEncryptKeys() {
+		return encryptKeys;
+	}
+
+	public void setEncryptKeys(EncryptKeys encryptKeys) {
+		this.encryptKeys = encryptKeys;
 	}
 }

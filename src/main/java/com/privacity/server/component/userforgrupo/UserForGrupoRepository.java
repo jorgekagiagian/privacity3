@@ -1,6 +1,7 @@
 package com.privacity.server.component.userforgrupo;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -27,5 +28,10 @@ public interface UserForGrupoRepository extends CrudRepository<UserForGrupo, Use
 	List<UserForGrupo> findByUserForGrupoIdUser(Long usuarioId);
 
 	@Query("SELECT u.userForGrupoId.user FROM UserForGrupo u WHERE u.userForGrupoId.grupo.idGrupo = ?1")
-	List<Usuario> findByUsersForGrupo(Long idGrupo);
+	List<Usuario> findByUsuariosForGrupo(Long idGrupo);
+	
+	@Query("SELECT u FROM UserForGrupo u WHERE u.userForGrupoId.grupo.idGrupo = ?1")
+	List<UserForGrupo> findByForGrupo(Long idGrupo);
+
+
 }

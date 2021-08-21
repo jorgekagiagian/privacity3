@@ -2,12 +2,14 @@ package com.privacity.server.security;
 
 import java.util.Date;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
+import com.privacity.server.encrypt.ConstantEncrypt;
 
 import io.jsonwebtoken.*;
 
@@ -15,11 +17,28 @@ import io.jsonwebtoken.*;
 public class JwtUtils {
 	private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
-	@Value("${bezkoder.app.jwtSecret}")
-	private String jwtSecret;
 
-	@Value("${bezkoder.app.jwtExpirationMs}")
+	private String jwtSecret;
+	
+	@Value("${privacity.security.jwtExpirationMs}")
 	private int jwtExpirationMs;
+	
+	@Value("${privacity.security.ramdom.jwtSecret}")
+	private boolean createRamdomJwtSecret;
+	
+	public String generateRamdomJwtSecret() {
+		return RandomStringUtils.randomAscii(ConstantEncrypt.JWT_SECRET_LONG_GENERATOR_VALUE);
+	}
+	
+	public JwtUtils(@Value("${privacity.security.ramdom.jwtSecret}")
+	boolean createRamdomJwtSecret , @Value("${privacity.security.jwtSecret}") String jwtSecretDefault) {
+		super();
+		if (createRamdomJwtSecret) {
+			jwtSecret= generateRamdomJwtSecret();
+		}else {
+			jwtSecret=jwtSecretDefault;
+		}
+	}
 
 	public String generateJwtToken(Authentication authentication) {
 
