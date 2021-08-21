@@ -1,26 +1,44 @@
 package com.privacity.common.dto;
 
+import com.privacity.common.annotations.PrivacityId;
+
+
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
 @Data
-public class MessageDTO{
-
-	private String idMessage;
-
-	private String idGrupo;
+@AllArgsConstructor
+@NoArgsConstructor
+public class MessageDTO implements Cloneable{
+	@PrivacityId
+	public String idMessage;
+	@PrivacityId
+	public String idGrupo;
 	
-	private String usernameCreation;
+	public UsuarioDTO usuarioCreacion;
 	
-	private MessageDetailDTO[] MessagesDetailDTO;
+	public MessageDetailDTO[] MessagesDetailDTO;
+	public String text;
+	public MediaDTO MediaDTO;
+	
+    public boolean blackMessage;
+    public boolean timeMessage;
+    public boolean anonimo;
+    public boolean systemMessage;
+    public boolean secretKeyPersonal;
+    
+    @PrivacityId
+    public String idMessageParentResend;
+    
+	@Override
+	public MessageDTO clone() throws CloneNotSupportedException {
+		return (MessageDTO)super.clone();
+	}
 
-//	public void setIdMessage(Long idMessage) {
-//		this.idMessage = idMessage+"";
-//		
-//	}
-//	public void setIdMessage(String idMessage) {
-//		this.idMessage = idMessage;
-//		
-//	}
+    public String getIdMessageToMap() {
+    	return idGrupo + "{-}" + idMessage;
+    }
 
 }

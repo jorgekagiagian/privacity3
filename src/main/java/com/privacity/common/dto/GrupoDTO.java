@@ -1,23 +1,27 @@
 package com.privacity.common.dto;
 
+import com.privacity.common.annotations.PrivacityId;
+
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class GrupoDTO{
-	private String idGrupo;
+	@PrivacityId
+	public String idGrupo;
 	
-	//@PrivacityPGPOut
-	//@PrivacityPGPIn
-	private String name;
-	
-	private UserDTO[] usersDTO;
-	private int messageUnread;
-	//public HashMap<String, UserDTO> mapa;
-
+	public boolean grupoInvitation;
+	public GrupoInvitationDTO grupoInvitationDTO;
+	public UserForGrupoDTO[] usersForGrupoDTO;
+	public String name;
 
 	
-	public Long getIdGrupoLong() {
-		return Long.parseLong(idGrupo);
+	public GrupoDTO(String name) {
+		super();
+		this.name = name;
 	}
 	
 

@@ -1,46 +1,29 @@
 package com.privacity.common.dto;
 
+import com.privacity.common.annotations.PrivacityId;
+
 import lombok.Data;
 
 
 @Data
 public class MessageDetailDTO{
 
+	@PrivacityId
+	public String idMessage;
+	@PrivacityId
+	public String idGrupo;
+	public UsuarioDTO usuarioDestino;
+    public String estado;
 
-	private String idMessageDetail;
-	
-
-	private String idMessage;
-	
-
-	private String idGrupo;
-
-	private String userDestino;
-	
-	private String text;
-
-    //@PrivacityPGPOut
-    private String estado;
-//
-//	public void setIdMessage(Long idMessage) {
-//		this.idMessage = idMessage+"";
-//		
-//	}
-//
-//	public void setIdMessage(String idMessage) {
-//		this.idMessage = idMessage;
-//		
-//	}
-//	
-//	public void setIdMessageDetail(Long idMessageDetail) {
-//		this.idMessageDetail = idMessageDetail+"";
-//		
-//	}
-//
-//	public void setIdMessageDetail(String idMessageDetail) {
-//		this.idMessageDetail = idMessageDetail;
-//		
-//	}
+    public String getIdMessageDetailToMap() {
+    	String usuarioid=null;
+    	if (usuarioDestino != null) {
+    		usuarioid= usuarioDestino.getIdUsuario();
+    	}
+    	return idGrupo + "{-}" + idMessage + "{-}" + usuarioid;
+    }
 	    
-
+    public String getIdMessageToMap() {
+    	return idGrupo + "{-}" + idMessage;
+    }
 }
